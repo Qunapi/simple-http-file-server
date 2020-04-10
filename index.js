@@ -4,10 +4,11 @@ const path = require("path");
 const bodyParser = require("body-parser");
 const fse = require("fs-extra");
 const fs = require("fs").promises;
+const fileupload = require("express-fileupload");
 
-var multer = require("multer");
+const multer = require("multer");
 
-var storage = multer.diskStorage({
+const storage = multer.diskStorage({
   destination: async function (req, file, cb) {
     const path = req.path.slice(1).split("/");
     path.pop();
@@ -22,31 +23,37 @@ var storage = multer.diskStorage({
   },
 });
 
-var upload = multer({ storage: storage });
+const upload = multer({ storage: storage });
 
 const SERVER_PORT = 3000;
 
 const server = express();
 server.use(cors());
 server.use(bodyParser.json({ type: "application/*+json" }));
-// server.use();
+server.use(fileupload());
 
 server.get("/files-info", async (req, res) => {
   const filesList = await getFiles(`${__dirname}/files`);
   res.send(filesList);
 });
 
-server.get("*", (req, res) => {
+server.get("*", async (req, res) => {
   const path = req.path.slice(1);
-  res.sendFile(`${__dirname}/files/${path}`);
+  const absolutePath = `${__dirname}/files/${path}`;
+  try {
+    await fs.access(absolutePath);
+    res.sendFile(absolutePath);
+  } catch (e) {
+    res.status(404).send("Not found");
+  }
 });
 
 server.put("*", upload.single("file"), (req, res) => {
-  res.send("file put");
-});
-
-server.head("*", (req, res) => {
-  res.send("head");
+  if (req.files) {
+    res.send("success");
+  } else {
+    res.status(400).send("bad request");
+  }
 });
 
 server.delete("*", async (req, res) => {
