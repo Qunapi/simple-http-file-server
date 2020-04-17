@@ -6,25 +6,6 @@ const fse = require("fs-extra");
 const fs = require("fs").promises;
 const fileupload = require("express-fileupload");
 
-const multer = require("multer");
-
-const storage = multer.diskStorage({
-  destination: async function (req, file, cb) {
-    const path = req.path.slice(1).split("/");
-    path.pop();
-    const pathStr = path.join("/");
-    await fse.ensureDir(`${__dirname}/files/${pathStr}`);
-
-    cb(null, `./files/${pathStr}`);
-  },
-  filename: function (req, file, cb) {
-    const name = req.path.split("/").pop();
-    cb(null, name);
-  },
-});
-
-const upload = multer({ storage: storage });
-
 const SERVER_PORT = 3000;
 
 const server = express();
@@ -48,8 +29,19 @@ server.get("*", async (req, res) => {
   }
 });
 
-server.put("*", upload.single("file"), (req, res) => {
+server.put("*", async (req, res) => {
   if (req.files) {
+    const path = req.path.slice(1).split("/");
+    path.pop();
+    const pathStr = path.join("/");
+    await fse.ensureDir(`${__dirname}/files/${pathStr}`);
+    const fileName = req.path.split("/").pop();
+
+    fs.writeFile(
+      `${__dirname}/files/${pathStr}/${fileName}`,
+      req.files.file.data,
+    );
+
     res.send("success");
   } else {
     res.status(400).send("bad request");
